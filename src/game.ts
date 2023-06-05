@@ -135,7 +135,7 @@ export default class Game extends Phaser.Scene {
         }
         else {
             this.events.off('startEpoch', this.epochHandler);
-            this.scene.start('sceneC', { score: this.hiddenScore });
+            this.scene.start('result', { score: this.hiddenScore });
         }
     }
 
