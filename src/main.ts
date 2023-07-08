@@ -4,6 +4,7 @@ import Result from "./result";
 
 const config = {
     type: Phaser.AUTO,
+    parent: 'game',
     backgroundColor: '#ffffff',
     width: 640,
     height: 360,
