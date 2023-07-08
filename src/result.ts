@@ -1,15 +1,15 @@
 import * as Phaser from 'phaser';
-
 import Model from './model';
+
+const RESULT_CASES = ['best', 'worst', 'default'];
 
 function sigmoid(x: number) {
     return 1 / (1 + Math.exp(-x));
 }
 
 export default class Result extends Phaser.Scene {
-    bert: Model;
-
     models: Model[];
+    bertModel: Model;
 
     constructor() {
         super('result');
@@ -17,18 +17,14 @@ export default class Result extends Phaser.Scene {
 
     init(data: { score: number }) {
         const score = sigmoid(3 * data.score / 10000) * 100;
-
-        this.bert = new Model('バート', score, '#e65f57');
+        this.bertModel = new Model('バート', score, '#e65f57');
     }
 
     preload() {
-        this.load.image('best', './assets/result_best.png');
-        this.load.image('worst', './assets/result_worst.png');
-        this.load.image('default', './assets/result_default.png');
-
-        this.load.audio('best', './assets/result_best.mp3');
-        this.load.audio('worst', './assets/result_default.mp3');
-        this.load.audio('default', './assets/result_default.mp3');
+        RESULT_CASES.forEach(resultCase => {
+            this.load.image(resultCase, `./assets/result_${resultCase}.png`);
+            this.load.audio(resultCase, `./assets/result_${resultCase}.mp3`);
+        });
 
         this.load.audio('title', './assets/start.mp3');
 
@@ -43,16 +39,13 @@ export default class Result extends Phaser.Scene {
         this.models.push(new Model('アルバート', 89.0, 'black'));
         this.models.push(new Model('ロベルタ', 88.0, 'black'));
 
-        this.models.push(this.bert);
-
+        this.models.push(this.bertModel);
         this.models.sort((a, b) => b.score - a.score);  // スコア降順
 
-        this.createBoard();
+        this.drawBoard();
 
-        this.createChar();
+        this.drawChar();
         
-        this.sound.add('title');
-
         this.time.addEvent({
             delay: 2000,
             callback: this.returnHandler,
@@ -62,7 +55,7 @@ export default class Result extends Phaser.Scene {
 
     update() {}
 
-    createBoard() {
+    drawBoard() {
         const rowWidth = 400;
         const rowHeight = 40;
 
@@ -79,58 +72,55 @@ export default class Result extends Phaser.Scene {
         this.add.text(nameX, headerY, 'モデル', headerConfig).setOrigin(0, 0.5);
         this.add.text(scoreX, headerY, 'スコア', headerConfig).setOrigin(1, 0.5);
 
-        for (let i = 0; i < this.models.length; i++) {
-            const model = this.models[i];
+        this.models.forEach(model => {
+            const rank = this.models.indexOf(model) + 1;
+            const name = model.name;
+            const score = model.score;
 
-            const modelRank = (i + 1).toString();
-            const modelName = model.name + 'ちゃん';
-            const modelScore = model.score.toFixed(2);
-
-            const modelY = headerY + rowHeight * (i + 1);
+            const modelY = headerY + rowHeight * rank;
             const modelConfig = { color: model.color };
 
-            this.add.text(rankX, modelY, modelRank, modelConfig).setOrigin(1, 0.5);
-            this.add.text(nameX, modelY, modelName, modelConfig).setOrigin(0, 0.5);
-            this.add.text(scoreX, modelY, modelScore, modelConfig).setOrigin(1, 0.5);
-        }
+            this.add.text(rankX, modelY, rank.toString(), modelConfig).setOrigin(1, 0.5);
+            this.add.text(nameX, modelY, name + 'ちゃん', modelConfig).setOrigin(0, 0.5);
+            this.add.text(scoreX, modelY, score.toFixed(2), modelConfig).setOrigin(1, 0.5);
+        });
     }
 
-    createChar() {
+    /**
+     * キャラを描画
+     */
+    drawChar() {
         const charX = 120;
         const charY = 200;
 
-        const rank = this.models.indexOf(this.bert) + 1;
+        const rank = this.models.indexOf(this.bertModel) + 1;
 
+        let key = '';
         switch (rank) {
-            case 1:
-                this.add.image(charX, charY, 'best');
-
+            case 1:  // ソータ
+                key = 'best';
                 this.add.text(80, 120, 'ソータ！', {
                     fontSize: 'large',
                     fontStyle: 'bold',
                     color: '#e65f57'
                 }).setOrigin(0.5);
-
-                this.sound.add('best');
-                this.sound.play('best');
                 break;
-
-            case this.models.length:
-                this.add.image(charX, charY, 'worst');
-
-                this.sound.add('worst');
-                this.sound.play('worst');
+            case this.models.length:  // 最下位
+                key = 'worst';
                 break;
-
             default:
-                this.add.image(charX, charY, 'default');
-
-                this.sound.add('default');
-                this.sound.play('default');
+                key = 'default';
                 break;
         }
+
+        this.add.image(charX, charY, key);
+        this.sound.add(key);
+        this.sound.play(key);
     }
 
+    /**
+     * クリックでタイトルに戻る
+     */
     returnHandler() {
         const returnText = this.add.text(320, 320, 'タイトルに戻る', {
             fontSize: '2em',
@@ -146,8 +136,9 @@ export default class Result extends Phaser.Scene {
             repeatDelay: 1000,
         });
 
-        this.input.manager.enabled = true;
+        this.sound.add('title');
 
+        this.input.manager.enabled = true;
         this.input.once('pointerdown', function () {
             this.sound.play('title');
             this.scene.start('title');
